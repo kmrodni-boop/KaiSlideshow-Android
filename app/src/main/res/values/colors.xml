@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#FF2980B9</color>
+    <color name="colorPrimaryDark">#FF1A5276</color>
+    <color name="colorAccent">#FFC0392B</color>
+    <color name="background_color">#FF000000</color>
+    <color name="control_bar_color">#E6232323</color>
+    <color name="info_bar_color">#CC141414</color>
+    <color name="border_color">#FF555555</color>
+    <color name="text_color">#FFEEEEEE</color>
+    <color name="secondary_text_color">#FFDDDDDD</color>
+    <color name="add_button_color">#FF2980B9</color>
+    <color name="exit_button_color">#FFC0392B</color>
+    <color name="white_54">#8AFFFFFF</color>
+    <color name="white_38">#61FFFFFF</color>
+    <color name="white_30">#4DFFFFFF</color>
+</resources>

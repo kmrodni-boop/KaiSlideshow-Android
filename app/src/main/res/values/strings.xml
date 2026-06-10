@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kai Slideshow</string>
+    <string name="no_images_message">No images selected</string>
+    <string name="no_images_subtitle">Click "Add Files" or "Add Folder" to get started</string>
+    <string name="add_files">Add Files</string>
+    <string name="add_folder">Add Folder</string>
+    <string name="exit">Exit</string>
+    <string name="interval_label">Interval:</string>
+    <string name="shuffle_label">Shuffle</string>
+    <string name="pause_label">PAUSE</string>
+    <string name="error_loading_image">Error loading image</string>
+    <string name="no_images_found">No images found in the selected folder</string>
+    <string name="error_accessing_folder">Error accessing folder</string>
+    <string name="storage_permission_rationale">This app needs storage permission to access your images</string>
+    <string name="storage_permission_denied">Storage permission is required to use this app</string>
+</resources>
