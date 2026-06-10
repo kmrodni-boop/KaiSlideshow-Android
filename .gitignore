@@ -1,0 +1,58 @@
+# Android
+*.iml
+.idea/
+gradle/
+build/
+local.properties
+
+# Android Studio
+*.suo
+*.user
+*.userosscache
+*.sublime-workspace
+*.sublime-project
+
+# Keystore files
+*.jks
+*.keystore
+
+# Signing files
+signing.properties
+
+# Build outputs
+*.apk
+*.ap_
+*.aab
+*.so
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Gradle
+.gradle/
+buildSrc/
+
+# Local history for a file
+*.local
+
+# Android NDK
+obj/
+
+# Android auto-generated files
+/bin/
+/gen/
+/out/
+
+# Version control
+.vscode/
+*.swp
+*.swo
