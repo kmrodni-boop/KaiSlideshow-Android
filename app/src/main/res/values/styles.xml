@@ -10,9 +10,14 @@
         <item name="android:windowLightStatusBar">false</item>
     </style>
 
-    <style name="Theme.KaiSlideshow.NoActionBar">
+    <style name="Theme.KaiSlideshow.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@color/background_color</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/background_color</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
     <style name="ControlBarButton">
