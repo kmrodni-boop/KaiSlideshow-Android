@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.DocumentsContract
@@ -463,7 +464,7 @@ class MainActivity : AppCompatActivity() {
         imageList.addAll(uniquePaths)
         applySorting()
         
-        if (!isPlaying && imageList.isNotEmpty) {
+        if (!isPlaying && imageList.isNotEmpty()) {
             togglePlay()
         }
         
@@ -483,13 +484,13 @@ class MainActivity : AppCompatActivity() {
     // Navigation
 
     private fun showNext() {
-        if (imageList.isEmpty) return
+        if (imageList.isEmpty()) return
         currentIndex = (currentIndex + 1) % imageList.size
         updateUIState()
     }
 
     private fun showPrevious() {
-        if (imageList.isEmpty) return
+        if (imageList.isEmpty()) return
         currentIndex = (currentIndex - 1) % imageList.size
         if (currentIndex < 0) currentIndex = imageList.size - 1
         updateUIState()
@@ -500,10 +501,10 @@ class MainActivity : AppCompatActivity() {
     private fun togglePlay() {
         if (isPlaying) {
             // Stop slideshow
-            slideHandler.removeCallbacks(slideRunnable)
+            slideRunnable?.let { slideHandler.removeCallbacks(it) }
             isPlaying = false
             showUI = true
-            uiHandler.removeCallbacks(uiRunnable)
+            uiRunnable?.let { uiHandler.removeCallbacks(it) }
         } else {
             // Start slideshow
             isPlaying = true
@@ -515,11 +516,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startSlideTimer() {
-        slideHandler.removeCallbacks(slideRunnable)
-        if (imageList.isNotEmpty) {
+        slideRunnable?.let { slideHandler.removeCallbacks(it) }
+        if (imageList.isNotEmpty()) {
             slideRunnable = object : Runnable {
                 override fun run() {
-                    if (imageList.isNotEmpty) {
+                    if (imageList.isNotEmpty()) {
                         showNext()
                         slideHandler.postDelayed(this, (settings.interval * 1000).toLong())
                     }
@@ -530,7 +531,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startUiTimer() {
-        uiHandler.removeCallbacks(uiRunnable)
+        uiRunnable?.let { uiHandler.removeCallbacks(it) }
         if (!isPlaying) return
         
         uiRunnable = object : Runnable {
@@ -583,23 +584,23 @@ class MainActivity : AppCompatActivity() {
     // Gesture handling
 
     private fun handleTap() {
-        if (imageList.isEmpty) return
+        if (imageList.isEmpty()) return
         togglePlay()
     }
 
     private fun handleDoubleTap() {
-        if (imageList.isEmpty) return
+        if (imageList.isEmpty()) return
         toggleFullscreen()
     }
 
     private fun handleSwipeLeft() {
-        if (imageList.isEmpty) return
+        if (imageList.isEmpty()) return
         showNext()
         startUiTimer()
     }
 
     private fun handleSwipeRight() {
-        if (imageList.isEmpty) return
+        if (imageList.isEmpty()) return
         showPrevious()
         startUiTimer()
     }
@@ -616,7 +617,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateImageDisplay() {
-        if (imageList.isNotEmpty && currentIndex < imageList.size) {
+        if (imageList.isNotEmpty() && currentIndex < imageList.size) {
             val imagePath = imageList[currentIndex]
             imageDisplay.loadImage(imagePath)
         } else {
@@ -625,7 +626,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateInfoBar() {
-        if (imageList.isNotEmpty && currentIndex < imageList.size) {
+        if (imageList.isNotEmpty() && currentIndex < imageList.size) {
             infoBar.updateInfo(currentIndex + 1, imageList.size, imageList[currentIndex])
         }
     }
@@ -639,7 +640,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePauseOverlay() {
-        pauseOverlay.visibility = if (!isPlaying && imageList.isNotEmpty && showUI) View.VISIBLE else View.GONE
+        pauseOverlay.visibility = if (!isPlaying && imageList.isNotEmpty() && showUI) View.VISIBLE else View.GONE
     }
 
     private fun updateLoadingState() {
@@ -647,7 +648,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUIVisibility() {
-        val shouldShowUI = showUI && imageList.isNotEmpty
+        val shouldShowUI = showUI && imageList.isNotEmpty()
         infoBar.visibility = if (shouldShowUI) View.VISIBLE else View.GONE
         controlBar.visibility = if (shouldShowUI) View.VISIBLE else View.GONE
     }
