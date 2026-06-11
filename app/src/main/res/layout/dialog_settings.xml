@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/settings"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/interval_label"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/settingsIntervalSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <CheckBox
+            android:id="@+id/settingsShuffleCheckbox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/shuffle_label"
+            android:layout_marginBottom="12dp" />
+
+        <CheckBox
+            android:id="@+id/settingsTransitionCheckbox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/transition_label"
+            android:layout_marginBottom="12dp" />
+
+        <CheckBox
+            android:id="@+id/settingsKenBurnsCheckbox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/ken_burns_label"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/sleep_timer_label"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/settingsSleepTimerSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+    </LinearLayout>
+</ScrollView>

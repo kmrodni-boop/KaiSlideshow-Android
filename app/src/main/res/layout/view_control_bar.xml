@@ -1,96 +1,114 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<HorizontalScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="@dimen/control_bar_height"
     android:background="@drawable/control_bar_bg"
-    android:paddingHorizontal="25dp">
+    android:scrollbars="none"
+    android:fillViewport="true">
 
-    <!-- Interval label -->
-    <TextView
-        android:id="@+id/intervalLabel"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/interval_label"
-        android:textColor="@color/text_color"
-        android:textSize="14sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        android:layout_height="match_parent"
+        android:paddingHorizontal="25dp">
 
-    <!-- Interval spinner -->
-    <Spinner
-        android:id="@+id/intervalSpinner"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:spinnerMode="dropdown"
-        app:layout_constraintStart_toEndOf="@id/intervalLabel"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        <!-- Add Files button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addFilesButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/add_files"
+            app:icon="@drawable/ic_add"
+            app:iconTint="@color/white"
+            app:iconGravity="textStart"
+            android:backgroundTint="@color/add_button_color"
+            app:cornerRadius="@dimen/button_border_radius"
+            android:textColor="@color/white"
+            android:textAllCaps="false"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
-    <!-- Shuffle checkbox and label -->
-    <CheckBox
-        android:id="@+id/shuffleCheckbox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:buttonTint="@color/colorPrimary"
-        app:layout_constraintStart_toEndOf="@id/intervalSpinner"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        <!-- Add Folder button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addFolderButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="@string/add_folder"
+            app:icon="@drawable/ic_folder"
+            app:iconTint="@color/white"
+            app:iconGravity="textStart"
+            android:backgroundTint="@color/add_button_color"
+            app:cornerRadius="@dimen/button_border_radius"
+            android:textColor="@color/white"
+            android:textAllCaps="false"
+            app:layout_constraintStart_toEndOf="@id/addFilesButton"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
-    <TextView
-        android:id="@+id/shuffleLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/shuffle_label"
-        android:textColor="@color/white"
-        android:layout_marginStart="8dp"
-        app:layout_constraintStart_toEndOf="@id/shuffleCheckbox"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        <!-- Settings button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/settingsButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="@string/settings"
+            app:icon="@drawable/ic_settings"
+            app:iconTint="@color/white"
+            app:iconGravity="textStart"
+            android:backgroundTint="@color/add_button_color"
+            app:cornerRadius="@dimen/button_border_radius"
+            android:textColor="@color/white"
+            android:textAllCaps="false"
+            app:layout_constraintStart_toEndOf="@id/addFolderButton"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
-    <!-- Add Files button -->
-    <Button
-        android:id="@+id/addFilesButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/add_files"
-        android:background="@drawable/btn_rounded"
-        android:textColor="@color/white"
-        android:textAllCaps="false"
-        app:layout_constraintEnd_toStartOf="@id/addFolderButton"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        <!-- Donate button (Heart) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/donateButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="@string/donate"
+            app:icon="@drawable/ic_heart"
+            app:iconTint="@color/white"
+            app:iconGravity="textStart"
+            android:backgroundTint="@color/add_button_color"
+            app:cornerRadius="@dimen/button_border_radius"
+            android:textColor="@color/white"
+            android:textAllCaps="false"
+            app:layout_constraintStart_toEndOf="@id/settingsButton"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
-    <!-- Add Folder button -->
-    <Button
-        android:id="@+id/addFolderButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/add_folder"
-        android:background="@drawable/btn_rounded"
-        android:textColor="@color/white"
-        android:textAllCaps="false"
-        android:layout_marginEnd="10dp"
-        app:layout_constraintEnd_toStartOf="@id/exitButton"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        <!-- Exit button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/exitButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="25dp"
+            android:text="@string/exit"
+            app:icon="@drawable/ic_exit"
+            app:iconTint="@color/white"
+            app:iconGravity="textStart"
+            android:backgroundTint="@color/exit_button_color"
+            app:cornerRadius="@dimen/button_border_radius"
+            android:textColor="@color/white"
+            android:textAllCaps="false"
+            android:textStyle="bold"
+            app:layout_constraintStart_toEndOf="@id/donateButton"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
-    <!-- Exit button -->
-    <Button
-        android:id="@+id/exitButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/exit"
-        android:background="@drawable/btn_exit_rounded"
-        android:textColor="@color/white"
-        android:textAllCaps="false"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</HorizontalScrollView>

@@ -1,32 +1,32 @@
 package com.kmrodni.kaislideshow
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.os.Handler
 import android.os.Looper
-import android.provider.DocumentsContract
-import android.provider.MediaStore
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.Window
 import android.view.WindowManager
+import android.widget.ArrayAdapter
+import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.GestureDetectorCompat
+import androidx.documentfile.provider.DocumentFile
 import com.kmrodni.kaislideshow.databinding.ActivityMainBinding
 import com.kmrodni.kaislideshow.models.SlideshowSettings
 import com.kmrodni.kaislideshow.utils.Constants
@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var errorContainer: LinearLayout
     private lateinit var errorMessage: TextView
     private lateinit var emptyState: LinearLayout
-    private lateinit var pauseOverlay: LinearLayout
+    private lateinit var pauseOverlay: android.widget.FrameLayout
 
     // State
     private val imageList = mutableListOf<String>()
@@ -61,7 +61,8 @@ class MainActivity : AppCompatActivity() {
     private var showUI = true
     private var isLoading = false
     private var isFullscreen = false
-    private var initialLoadComplete = false
+    private var sleepTimerHandler = Handler(Looper.getMainLooper())
+    private var sleepTimerRunnable: Runnable? = null
 
     // Timers
     private val slideHandler = Handler(Looper.getMainLooper())
@@ -81,8 +82,11 @@ class MainActivity : AppCompatActivity() {
     private val pickFilesLauncher = registerForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris ->
-        if (uris != null && uris.isNotEmpty()) {
+        if (!uris.isNullOrEmpty()) {
             handleUris(uris)
+        } else {
+            isLoading = false
+            updateLoadingState()
         }
     }
 
@@ -91,20 +95,14 @@ class MainActivity : AppCompatActivity() {
     ) { uri ->
         if (uri != null) {
             handleFolderUri(uri)
+        } else {
+            isLoading = false
+            updateLoadingState()
         }
     }
 
-    // Permission request launcher for Android 13+
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            // Permission granted, try the operation again
-            showFilePicker()
-        } else {
-            Toast.makeText(this, "Permission denied. Cannot access files.", Toast.LENGTH_SHORT).show()
-        }
-    }
+    // Permission request launcher
+    // Removed as it's not needed for basic file picking anymore
 
     // Lifecycle methods
 
@@ -134,6 +132,10 @@ class MainActivity : AppCompatActivity() {
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 handleDoubleTap()
                 return true
+            }
+
+            override fun onLongPress(e: MotionEvent) {
+                handleLongPress()
             }
 
             override fun onFling(
@@ -167,6 +169,9 @@ class MainActivity : AppCompatActivity() {
         
         // Start UI hide timer
         startUiTimer()
+
+        // Initial UI state update
+        updateUIState()
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -182,20 +187,53 @@ class MainActivity : AppCompatActivity() {
         uiHandler.removeCallbacksAndMessages(null)
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        // Handle gestures
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        // Find which view is under the touch
+        val viewUnderTouch = binding.root.findChildViewUnder(event.x, event.y)
+        
+        // If we are touching the control bar, don't let the gesture detector handle it
+        // and don't trigger the UI hide timer reset from here
+        if (controlBar.visibility == View.VISIBLE && isPointInsideView(event.rawX, event.rawY, controlBar)) {
+            return super.dispatchTouchEvent(event)
+        }
+
         gestureDetector.onTouchEvent(event)
         
-        // Also show UI on any touch
-        if (!showUI) {
-            showUI = true
-            updateUIVisibility()
-        }
-        if (isPlaying) {
-            startUiTimer()
+        if (event.action == MotionEvent.ACTION_DOWN) {
+            if (!showUI) {
+                showUI = true
+                updateUIVisibility()
+            }
+            if (isPlaying) {
+                startUiTimer()
+            }
         }
         
-        return true
+        return super.dispatchTouchEvent(event)
+    }
+
+    private fun isPointInsideView(x: Float, y: Float, view: View): Boolean {
+        val location = IntArray(2)
+        view.getLocationOnScreen(location)
+        val viewX = location[0]
+        val viewY = location[1]
+
+        return (x > viewX && x < (viewX + view.width)) &&
+                (y > viewY && y < (viewY + view.height))
+    }
+
+    private fun android.view.ViewGroup.findChildViewUnder(x: Float, y: Float): View? {
+        for (i in childCount - 1 downTo 0) {
+            val child = getChildAt(i)
+            if (x >= child.left && x < child.right && y >= child.top && y < child.bottom) {
+                return child
+            }
+        }
+        return null
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        return gestureDetector.onTouchEvent(event) || super.onTouchEvent(event)
     }
 
     // Initialization
@@ -214,7 +252,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupViewListeners() {
         // Image display listeners
         imageDisplay.setOnImageLoadedListener {
-            // Image loaded successfully
+            errorContainer.visibility = View.GONE
         }
 
         imageDisplay.setOnImageErrorListener { path ->
@@ -222,18 +260,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Control bar listeners
-        controlBar.setOnIntervalChangedListener { newValue ->
-            settings = settings.copy(interval = newValue)
-            saveSettings()
-            if (isPlaying) startSlideTimer()
-        }
-
-        controlBar.setOnShuffleChangedListener { newValue ->
-            settings = settings.copy(shuffle = newValue)
-            saveSettings()
-            applySorting()
-        }
-
         controlBar.setOnAddFilesListener {
             pickFiles()
         }
@@ -242,85 +268,145 @@ class MainActivity : AppCompatActivity() {
             pickFolder()
         }
 
+        controlBar.setOnSettingsListener {
+            showSettingsDialog()
+        }
+
+        controlBar.setOnDonateListener {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://paypal.me/kaimarius"))
+            startActivity(intent)
+        }
+
         controlBar.setOnExitListener {
             exitApp()
+        }
+
+        // Empty state listeners
+        binding.emptyAddFiles.setOnClickListener {
+            pickFiles()
+        }
+
+        binding.emptyAddFolder.setOnClickListener {
+            pickFolder()
         }
     }
 
     private fun loadSettings() {
         settings = SlideshowSettings.fromSharedPreferences(prefs)
-        controlBar.setInterval(settings.interval)
-        controlBar.setShuffle(settings.shuffle)
+        applySettings()
     }
 
     private fun saveSettings() {
         settings.saveToSharedPreferences(prefs)
+        applySettings()
+    }
+
+    private fun applySettings() {
+        // Re-start timers if playing
+        if (isPlaying) {
+            startSlideTimer()
+        }
+        
+        // Handle sleep timer
+        startSleepTimer()
+        
+        // Apply shuffle if needed
+        applySorting()
+    }
+
+    private fun showSettingsDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_settings, null)
+        val intervalSpinner = dialogView.findViewById<Spinner>(R.id.settingsIntervalSpinner)
+        val shuffleCheckbox = dialogView.findViewById<CheckBox>(R.id.settingsShuffleCheckbox)
+        val transitionCheckbox = dialogView.findViewById<CheckBox>(R.id.settingsTransitionCheckbox)
+        val kenBurnsCheckbox = dialogView.findViewById<CheckBox>(R.id.settingsKenBurnsCheckbox)
+        val sleepTimerSpinner = dialogView.findViewById<Spinner>(R.id.settingsSleepTimerSpinner)
+
+        // Setup interval spinner
+        val intervalAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, Constants.INTERVAL_OPTIONS)
+        intervalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        intervalSpinner.adapter = intervalAdapter
+        intervalSpinner.setSelection(Constants.INTERVAL_OPTIONS.indexOf(settings.interval))
+
+        // Setup sleep timer spinner
+        val sleepTimerOptions = listOf(0, 15, 30, 60, 120, 240)
+        val sleepTimerLabels = listOf(
+            getString(R.string.off),
+            getString(R.string.minutes_15),
+            getString(R.string.minutes_30),
+            getString(R.string.hour_1),
+            getString(R.string.hours_2),
+            getString(R.string.hours_4)
+        )
+        val sleepTimerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, sleepTimerLabels)
+        sleepTimerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        sleepTimerSpinner.adapter = sleepTimerAdapter
+        sleepTimerSpinner.setSelection(sleepTimerOptions.indexOf(settings.sleepTimerMinutes))
+
+        // Set current values
+        shuffleCheckbox.isChecked = settings.shuffle
+        transitionCheckbox.isChecked = settings.transitionEnabled
+        kenBurnsCheckbox.isChecked = settings.kenBurnsEnabled
+
+        AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val newInterval = Constants.INTERVAL_OPTIONS[intervalSpinner.selectedItemPosition]
+                val newSleepTimer = sleepTimerOptions[sleepTimerSpinner.selectedItemPosition]
+                
+                settings = settings.copy(
+                    interval = newInterval,
+                    shuffle = shuffleCheckbox.isChecked,
+                    transitionEnabled = transitionCheckbox.isChecked,
+                    kenBurnsEnabled = kenBurnsCheckbox.isChecked,
+                    sleepTimerMinutes = newSleepTimer
+                )
+                saveSettings()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun startSleepTimer() {
+        sleepTimerRunnable?.let { sleepTimerHandler.removeCallbacks(it) }
+        
+        if (settings.sleepTimerMinutes > 0) {
+            sleepTimerRunnable = Runnable {
+                exitApp()
+            }
+            sleepTimerHandler.postDelayed(sleepTimerRunnable!!, settings.sleepTimerMinutes * 60 * 1000L)
+        }
     }
 
     // File picking methods
 
     private fun pickFiles() {
         if (isLoading) return
-        
-        // For Android 13+, we need READ_MEDIA_IMAGES permission
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-        } else {
-            showFilePicker()
-        }
+        showFilePicker()
     }
 
     private fun pickFolder() {
         if (isLoading) return
-        
-        // For Android 13+, we need READ_MEDIA_IMAGES permission
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-        } else {
-            showFolderPicker()
-        }
+        showFolderPicker()
     }
 
     private fun showFilePicker() {
         isLoading = true
         updateLoadingState()
-        
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "image/*"
-            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-            addCategory(Intent.CATEGORY_OPENABLE)
-            // For Android 13+, use MediaStore
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-        }
-        pickFilesLauncher.launch(intent)
+        pickFilesLauncher.launch("image/*")
     }
 
     private fun showFolderPicker() {
         isLoading = true
         updateLoadingState()
-        
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-            addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
-        }
-        pickFolderLauncher.launch(intent)
+        pickFolderLauncher.launch(null)
     }
 
     private fun handleUris(uris: List<Uri>) {
         val imagePaths = mutableListOf<String>()
         
         uris.forEach { uri ->
-            // Try to get file path from URI
-            val path = FileUtils.getFilePathFromUri(this, uri)
-            if (path != null && FileUtils.isSupportedImage(path)) {
-                imagePaths.add(path)
-            } else {
-                // If we can't get path, use URI directly (Glide can handle it)
-                imagePaths.add(uri.toString())
-            }
+            imagePaths.add(uri.toString())
         }
         
         isLoading = false
@@ -329,19 +415,29 @@ class MainActivity : AppCompatActivity() {
         if (imagePaths.isNotEmpty()) {
             addImages(imagePaths)
         } else {
-            Toast.makeText(this, "No valid images found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.no_images_found, Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun handleFolderUri(treeUri: Uri) {
+        isLoading = true
+        updateLoadingState()
+        
         // Take persistable URI permission
         contentResolver.takePersistableUriPermission(
             treeUri,
             Intent.FLAG_GRANT_READ_URI_PERMISSION
         )
         
-        // Get all images from the selected directory
-        val imagePaths = getImagesFromTreeUri(treeUri)
+        // Use a background thread or Coroutine for large folder traversal
+        // For now, doing it simply
+        val imagePaths = mutableListOf<String>()
+        val root = DocumentFile.fromTreeUri(this, treeUri)
+        root?.listFiles()?.forEach { file ->
+            if (file.isFile && file.type?.startsWith("image/") == true) {
+                imagePaths.add(file.uri.toString())
+            }
+        }
         
         isLoading = false
         updateLoadingState()
@@ -349,36 +445,11 @@ class MainActivity : AppCompatActivity() {
         if (imagePaths.isNotEmpty()) {
             addImages(imagePaths)
         } else {
-            Toast.makeText(this, "No images found in selected folder", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.no_images_found, Toast.LENGTH_SHORT).show()
         }
     }
 
-    @SuppressLint("NewApi")
-    private fun getImagesFromTreeUri(treeUri: Uri): List<String> {
-        val imagePaths = mutableListOf<String>()
-        
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                val docId = DocumentsContract.getTreeDocumentId(treeUri)
-                val split = docId.split(":").toTypedArray()
-                if (split.size >= 2) {
-                    val type = split[0]
-                    val id = split[1]
-                    if ("primary".equals(type, ignoreCase = true)) {
-                        val basePath = Environment.getExternalStorageDirectory().absolutePath
-                        val directory = File("$basePath/$id")
-                        if (directory.exists() && directory.isDirectory) {
-                            return FileUtils.loadImagesFromDirectory(directory.absolutePath)
-                        }
-                    }
-                }
-            }
-            emptyList()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
-    }
+    // Removed getImagesFromTreeUri as it's replaced by handleFolderUri logic
 
     // Intent handling
 
@@ -395,49 +466,34 @@ class MainActivity : AppCompatActivity() {
     private fun handleIncomingIntent(intent: Intent) {
         val imagePaths = mutableListOf<String>()
         
-        when (intent.action) {
-            Intent.ACTION_VIEW -> {
-                // Single file or content URI
-                intent.data?.let { uri ->
-                    FileUtils.getFilePathFromUri(this, uri)?.let { path ->
-                        if (FileUtils.isSupportedImage(path)) {
-                            imagePaths.add(path)
-                        }
-                    } ?: run {
-                        // If we can't get the path, use the URI directly
+        try {
+            when (intent.action) {
+                Intent.ACTION_VIEW -> {
+                    intent.data?.let { uri ->
                         imagePaths.add(uri.toString())
                     }
                 }
-            }
-            Intent.ACTION_SEND -> {
-                // Single file shared
-                intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { uri ->
-                    FileUtils.getFilePathFromUri(this, uri)?.let { path ->
-                        if (FileUtils.isSupportedImage(path)) {
-                            imagePaths.add(path)
-                        }
-                    } ?: run {
+                Intent.ACTION_SEND -> {
+                    intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { uri ->
                         imagePaths.add(uri.toString())
                     }
                 }
-            }
-            Intent.ACTION_SEND_MULTIPLE -> {
-                // Multiple files shared
-                intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uris ->
-                    uris.forEach { uri ->
-                        FileUtils.getFilePathFromUri(this, uri)?.let { path ->
-                            if (FileUtils.isSupportedImage(path)) {
-                                imagePaths.add(path)
-                            }
-                        } ?: run {
+                Intent.ACTION_SEND_MULTIPLE -> {
+                    intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uris ->
+                        uris.forEach { uri ->
                             imagePaths.add(uri.toString())
                         }
                     }
                 }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
         
         if (imagePaths.isNotEmpty()) {
+            // If we are getting images shared, we should probably show them and NOT auto-play immediately
+            // or at least make sure the UI is visible for a moment.
+            showUI = true
             addImages(imagePaths)
         }
     }
@@ -570,10 +626,20 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleTap() {
         if (imageList.isEmpty()) return
-        togglePlay()
+        // Just show UI, don't toggle play
+        showUI = true
+        updateUIVisibility()
+        if (isPlaying) {
+            startUiTimer()
+        }
     }
 
     private fun handleDoubleTap() {
+        if (imageList.isEmpty()) return
+        togglePlay()
+    }
+
+    private fun handleLongPress() {
         if (imageList.isEmpty()) return
         toggleFullscreen()
     }
@@ -604,7 +670,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateImageDisplay() {
         if (imageList.isNotEmpty() && currentIndex < imageList.size) {
             val imagePath = imageList[currentIndex]
-            imageDisplay.loadImage(imagePath)
+            imageDisplay.loadImage(imagePath, settings)
         } else {
             imageDisplay.clearImage()
         }
@@ -633,8 +699,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUIVisibility() {
-        val shouldShowUI = showUI && imageList.isNotEmpty()
-        infoBar.visibility = if (shouldShowUI) View.VISIBLE else View.GONE
+        val shouldShowUI = showUI || imageList.isEmpty()
+        infoBar.visibility = if (shouldShowUI && imageList.isNotEmpty()) View.VISIBLE else View.GONE
         controlBar.visibility = if (shouldShowUI) View.VISIBLE else View.GONE
     }
 

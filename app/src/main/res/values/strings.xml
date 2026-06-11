@@ -14,4 +14,17 @@
     <string name="error_accessing_folder">Error accessing folder</string>
     <string name="storage_permission_rationale">This app needs storage permission to access your images</string>
     <string name="storage_permission_denied">Storage permission is required to use this app</string>
+    <string name="donate">Donate</string>
+    <string name="settings">Settings</string>
+    <string name="transition_label">Fade Transitions</string>
+    <string name="ken_burns_label">Zoom/Pan Effect (Ken Burns)</string>
+    <string name="sleep_timer_label">Sleep Timer</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="off">Off</string>
+    <string name="minutes_15">15 Minutes</string>
+    <string name="minutes_30">30 Minutes</string>
+    <string name="hour_1">1 Hour</string>
+    <string name="hours_2">2 Hours</string>
+    <string name="hours_4">4 Hours</string>
 </resources>

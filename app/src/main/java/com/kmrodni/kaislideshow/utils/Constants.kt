@@ -15,7 +15,7 @@ object Constants {
     const val ERROR_ACCESSING_FOLDER = "Error accessing folder"
     
     // UI constants
-    const val UI_HIDE_DURATION_MS = 3000L
+    const val UI_HIDE_DURATION_MS = 5000L
     const val FADE_ANIMATION_DURATION_MS = 300L
     const val CONTROL_BAR_HEIGHT = 80f
     const val INFO_BAR_PADDING = 20f
