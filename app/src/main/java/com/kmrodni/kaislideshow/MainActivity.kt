@@ -19,7 +19,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.Window
 import android.view.WindowManager
-import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -28,12 +27,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.GestureDetectorCompat
-import com.karumi.dexter.Dexter
-import com.karumi.dexter.PermissionToken
-import com.karumi.dexter.listener.PermissionDeniedResponse
-import com.karumi.dexter.listener.PermissionGrantedResponse
-import com.karumi.dexter.listener.PermissionRequest
-import com.karumi.dexter.listener.single.PermissionListener
 import com.kmrodni.kaislideshow.databinding.ActivityMainBinding
 import com.kmrodni.kaislideshow.models.SlideshowSettings
 import com.kmrodni.kaislideshow.utils.Constants
@@ -84,24 +77,32 @@ class MainActivity : AppCompatActivity() {
         getSharedPreferences("KaiSlideshowPrefs", MODE_PRIVATE)
     }
 
-    // Activity result launchers
+    // Activity result launchers for file/folder picking
     private val pickFilesLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.let { intent ->
-                handleFilePickResult(intent)
-            }
+        ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris != null && uris.isNotEmpty()) {
+            handleUris(uris)
         }
     }
 
     private val pickFolderLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.let { intent ->
-                handleFolderPickResult(intent)
-            }
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            handleFolderUri(uri)
+        }
+    }
+
+    // Permission request launcher for Android 13+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Permission granted, try the operation again
+            showFilePicker()
+        } else {
+            Toast.makeText(this, "Permission denied. Cannot access files.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -256,6 +257,129 @@ class MainActivity : AppCompatActivity() {
         settings.saveToSharedPreferences(prefs)
     }
 
+    // File picking methods
+
+    private fun pickFiles() {
+        if (isLoading) return
+        
+        // For Android 13+, we need READ_MEDIA_IMAGES permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+        } else {
+            showFilePicker()
+        }
+    }
+
+    private fun pickFolder() {
+        if (isLoading) return
+        
+        // For Android 13+, we need READ_MEDIA_IMAGES permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+        } else {
+            showFolderPicker()
+        }
+    }
+
+    private fun showFilePicker() {
+        isLoading = true
+        updateLoadingState()
+        
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "image/*"
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            addCategory(Intent.CATEGORY_OPENABLE)
+            // For Android 13+, use MediaStore
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+        pickFilesLauncher.launch(intent)
+    }
+
+    private fun showFolderPicker() {
+        isLoading = true
+        updateLoadingState()
+        
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
+        }
+        pickFolderLauncher.launch(intent)
+    }
+
+    private fun handleUris(uris: List<Uri>) {
+        val imagePaths = mutableListOf<String>()
+        
+        uris.forEach { uri ->
+            // Try to get file path from URI
+            val path = FileUtils.getFilePathFromUri(this, uri)
+            if (path != null && FileUtils.isSupportedImage(path)) {
+                imagePaths.add(path)
+            } else {
+                // If we can't get path, use URI directly (Glide can handle it)
+                imagePaths.add(uri.toString())
+            }
+        }
+        
+        isLoading = false
+        updateLoadingState()
+        
+        if (imagePaths.isNotEmpty()) {
+            addImages(imagePaths)
+        } else {
+            Toast.makeText(this, "No valid images found", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun handleFolderUri(treeUri: Uri) {
+        // Take persistable URI permission
+        contentResolver.takePersistableUriPermission(
+            treeUri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+        
+        // Get all images from the selected directory
+        val imagePaths = getImagesFromTreeUri(treeUri)
+        
+        isLoading = false
+        updateLoadingState()
+        
+        if (imagePaths.isNotEmpty()) {
+            addImages(imagePaths)
+        } else {
+            Toast.makeText(this, "No images found in selected folder", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    @SuppressLint("NewApi")
+    private fun getImagesFromTreeUri(treeUri: Uri): List<String> {
+        val imagePaths = mutableListOf<String>()
+        
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val docId = DocumentsContract.getTreeDocumentId(treeUri)
+                val split = docId.split(":").toTypedArray()
+                if (split.size >= 2) {
+                    val type = split[0]
+                    val id = split[1]
+                    if ("primary".equals(type, ignoreCase = true)) {
+                        val basePath = Environment.getExternalStorageDirectory().absolutePath
+                        val directory = File("$basePath/$id")
+                        if (directory.exists() && directory.isDirectory) {
+                            return FileUtils.loadImagesFromDirectory(directory.absolutePath)
+                        }
+                    }
+                }
+            }
+            emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
     // Intent handling
 
     private fun processInitialIntent(intent: Intent?) {
@@ -315,145 +439,6 @@ class MainActivity : AppCompatActivity() {
         
         if (imagePaths.isNotEmpty()) {
             addImages(imagePaths)
-        }
-    }
-
-    // File picking
-
-    private fun pickFiles() {
-        if (isLoading) return
-        
-        // Check permission first
-        checkStoragePermission { granted ->
-            if (granted) {
-                isLoading = true
-                updateLoadingState()
-                
-                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                    type = "image/*"
-                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                }
-                pickFilesLauncher.launch(intent)
-            }
-        }
-    }
-
-    private fun pickFolder() {
-        if (isLoading) return
-        
-        // Check permission first
-        checkStoragePermission { granted ->
-            if (granted) {
-                isLoading = true
-                updateLoadingState()
-                
-                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-                }
-                pickFolderLauncher.launch(intent)
-            }
-        }
-    }
-
-    private fun handleFilePickResult(intent: Intent) {
-        val imagePaths = mutableListOf<String>()
-        
-        // Handle multiple files
-        if (intent.clipData != null) {
-            val clipData: ClipData? = intent.clipData
-            clipData?.let { data ->
-                for (i in 0 until data.itemCount) {
-                    data.getItemAt(i).uri?.let { uri ->
-                        FileUtils.getFilePathFromUri(this, uri)?.let { path ->
-                            if (FileUtils.isSupportedImage(path)) {
-                                imagePaths.add(path)
-                            }
-                        } ?: run {
-                            imagePaths.add(uri.toString())
-                        }
-                    }
-                }
-            }
-        } else {
-            // Handle single file
-            intent.data?.let { uri ->
-                FileUtils.getFilePathFromUri(this, uri)?.let { path ->
-                    if (FileUtils.isSupportedImage(path)) {
-                        imagePaths.add(path)
-                    }
-                } ?: run {
-                    imagePaths.add(uri.toString())
-                }
-            }
-        }
-        
-        isLoading = false
-        updateLoadingState()
-        
-        if (imagePaths.isNotEmpty()) {
-            addImages(imagePaths)
-        } else {
-            Toast.makeText(this, R.string.no_images_found, Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun handleFolderPickResult(intent: Intent) {
-        intent.data?.let { uri ->
-            // Take persistable URI permission
-            contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-            
-            // Get the directory path from the URI
-            val path = getPathFromTreeUri(uri)
-            if (path != null) {
-                val images = FileUtils.loadImagesFromDirectory(path)
-                isLoading = false
-                updateLoadingState()
-                
-                if (images.isNotEmpty()) {
-                    addImages(images)
-                } else {
-                    Toast.makeText(this, R.string.no_images_found, Toast.LENGTH_SHORT).show()
-                }
-            } else {
-                isLoading = false
-                updateLoadingState()
-                Toast.makeText(this, R.string.error_accessing_folder, Toast.LENGTH_SHORT).show()
-            }
-        } ?: run {
-            isLoading = false
-            updateLoadingState()
-        }
-    }
-
-    @SuppressLint("NewApi")
-    private fun getPathFromTreeUri(treeUri: Uri): String? {
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                val docId = DocumentsContract.getTreeDocumentId(treeUri)
-                val split = docId.split(":").toTypedArray()
-                if (split.size >= 2) {
-                    val type = split[0]
-                    val id = split[1]
-                    if ("primary".equals(type, ignoreCase = true)) {
-                        val basePath = Environment.getExternalStorageDirectory().absolutePath
-                        "$basePath/$id"
-                    } else {
-                        // For other storage devices
-                        null
-                    }
-                } else {
-                    null
-                }
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -656,72 +641,5 @@ class MainActivity : AppCompatActivity() {
     private fun showError(path: String) {
         errorContainer.visibility = View.VISIBLE
         errorMessage.text = File(path).name
-    }
-
-    // Permission handling
-
-    private fun checkStoragePermission(callback: (Boolean) -> Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // For Android 11+, we need MANAGE_EXTERNAL_STORAGE or use MediaStore
-            // For now, we'll use Dexter for simplicity
-            Dexter.withContext(this)
-                .withPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
-                .withListener(object : PermissionListener {
-                    override fun onPermissionGranted(response: PermissionGrantedResponse) {
-                        callback(true)
-                    }
-
-                    override fun onPermissionDenied(response: PermissionDeniedResponse) {
-                        callback(false)
-                        Toast.makeText(
-                            this@MainActivity,
-                            R.string.storage_permission_denied,
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-
-                    override fun onPermissionRationaleShouldBeShown(
-                        permission: PermissionRequest,
-                        token: PermissionToken
-                    ) {
-                        token.continuePermissionRequest()
-                    }
-                })
-                .check()
-        } else {
-            // For older Android versions
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                callback(true)
-            } else {
-                Dexter.withContext(this)
-                    .withPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
-                    .withListener(object : PermissionListener {
-                        override fun onPermissionGranted(response: PermissionGrantedResponse) {
-                            callback(true)
-                        }
-
-                        override fun onPermissionDenied(response: PermissionDeniedResponse) {
-                            callback(false)
-                            Toast.makeText(
-                                this@MainActivity,
-                                R.string.storage_permission_denied,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-
-                        override fun onPermissionRationaleShouldBeShown(
-                            permission: PermissionRequest,
-                            token: PermissionToken
-                        ) {
-                            token.continuePermissionRequest()
-                        }
-                    })
-                    .check()
-            }
-        }
     }
 }
