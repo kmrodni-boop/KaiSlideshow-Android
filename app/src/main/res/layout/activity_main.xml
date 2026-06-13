@@ -49,7 +49,8 @@
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:src="@android:drawable/ic_dialog_alert"
-                android:tint="@color/white_30" />
+                app:tint="@color/white_30"
+                android:contentDescription="@null" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -83,7 +84,8 @@
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:src="@android:drawable/ic_menu_gallery"
-                android:tint="@color/white_30" />
+                app:tint="@color/white_30"
+                android:contentDescription="@null" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -144,6 +146,62 @@
                 android:src="@android:drawable/ic_media_pause"
                 app:tint="@color/white" />
         </FrameLayout>
+
+        <!-- Navigation Buttons -->
+        <ImageButton
+            android:id="@+id/btnPrev"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="center_vertical|start"
+            android:layout_marginStart="16dp"
+            android:background="@drawable/nav_button_bg"
+            android:src="@android:drawable/ic_media_previous"
+            android:visibility="gone"
+            app:tint="@color/white"
+            android:contentDescription="@string/prev_image" />
+
+        <ImageButton
+            android:id="@+id/btnNext"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/nav_button_bg"
+            android:src="@android:drawable/ic_media_next"
+            android:visibility="gone"
+            app:tint="@color/white"
+            android:contentDescription="@string/next_image" />
+
+        <!-- Zoom Buttons -->
+        <LinearLayout
+            android:id="@+id/zoomControls"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="24dp"
+            android:layout_marginBottom="100dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <ImageButton
+                android:id="@+id/btnZoomIn"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/nav_button_bg"
+                android:src="@drawable/ic_zoom_in"
+                app:tint="@color/white"
+                android:contentDescription="@string/zoom_in" />
+
+            <ImageButton
+                android:id="@+id/btnZoomOut"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/nav_button_bg"
+                android:src="@drawable/ic_zoom_out"
+                app:tint="@color/white"
+                android:contentDescription="@string/zoom_out" />
+        </LinearLayout>
 
     </FrameLayout>
 

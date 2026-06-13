@@ -16,6 +16,7 @@ import android.view.Window
 import android.view.WindowManager
 import android.widget.ArrayAdapter
 import android.widget.CheckBox
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Spinner
@@ -52,6 +53,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var errorMessage: TextView
     private lateinit var emptyState: LinearLayout
     private lateinit var pauseOverlay: android.widget.FrameLayout
+    private lateinit var btnPrev: ImageButton
+    private lateinit var btnNext: ImageButton
+    private lateinit var btnZoomIn: ImageButton
+    private lateinit var btnZoomOut: ImageButton
+    private lateinit var zoomControls: LinearLayout
 
     // State
     private val imageList = mutableListOf<String>()
@@ -144,6 +150,10 @@ class MainActivity : AppCompatActivity() {
                 velocityX: Float,
                 velocityY: Float
             ): Boolean {
+                if (imageDisplay.isZoomed()) {
+                    // Do nothing in zoom, user is panning
+                    return false
+                }
                 if (e1 != null) {
                     val diffX = e2.x - e1.x
                     if (diffX > 100) {
@@ -188,26 +198,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-        // Find which view is under the touch
-        val viewUnderTouch = binding.root.findChildViewUnder(event.x, event.y)
+        // If we are touching the control bar or other buttons, don't let the gesture detector handle it
+        val isControlBarTouch = controlBar.visibility == View.VISIBLE && isPointInsideView(event.rawX, event.rawY, controlBar)
+        val isNavButtonTouch = (btnPrev.visibility == View.VISIBLE && isPointInsideView(event.rawX, event.rawY, btnPrev)) ||
+                               (btnNext.visibility == View.VISIBLE && isPointInsideView(event.rawX, event.rawY, btnNext))
+        val isZoomTouch = zoomControls.visibility == View.VISIBLE && isPointInsideView(event.rawX, event.rawY, zoomControls)
         
-        // If we are touching the control bar, don't let the gesture detector handle it
-        // and don't trigger the UI hide timer reset from here
-        if (controlBar.visibility == View.VISIBLE && isPointInsideView(event.rawX, event.rawY, controlBar)) {
+        if (isControlBarTouch || isNavButtonTouch || isZoomTouch) {
             return super.dispatchTouchEvent(event)
         }
 
         gestureDetector.onTouchEvent(event)
-        
-        if (event.action == MotionEvent.ACTION_DOWN) {
-            if (!showUI) {
-                showUI = true
-                updateUIVisibility()
-            }
-            if (isPlaying) {
-                startUiTimer()
-            }
-        }
         
         return super.dispatchTouchEvent(event)
     }
@@ -247,6 +248,11 @@ class MainActivity : AppCompatActivity() {
         errorMessage = binding.errorMessage
         emptyState = binding.emptyState
         pauseOverlay = binding.pauseOverlay
+        btnPrev = binding.btnPrev
+        btnNext = binding.btnNext
+        btnZoomIn = binding.btnZoomIn
+        btnZoomOut = binding.btnZoomOut
+        zoomControls = binding.zoomControls
     }
 
     private fun setupViewListeners() {
@@ -288,6 +294,28 @@ class MainActivity : AppCompatActivity() {
 
         binding.emptyAddFolder.setOnClickListener {
             pickFolder()
+        }
+
+        // Nav buttons
+        btnPrev.setOnClickListener {
+            imageDisplay.resetTransformations()
+            showPrevious()
+            startUiTimer()
+        }
+        btnNext.setOnClickListener {
+            imageDisplay.resetTransformations()
+            showNext()
+            startUiTimer()
+        }
+
+        // Zoom buttons
+        btnZoomIn.setOnClickListener {
+            imageDisplay.zoomIn()
+            startUiTimer()
+        }
+        btnZoomOut.setOnClickListener {
+            imageDisplay.zoomOut()
+            startUiTimer()
         }
     }
 
@@ -527,6 +555,7 @@ class MainActivity : AppCompatActivity() {
     private fun showNext() {
         if (imageList.isEmpty()) return
         currentIndex = (currentIndex + 1) % imageList.size
+        if (isPlaying) startSlideTimer() // Reset timer on manual change
         updateUIState()
     }
 
@@ -534,6 +563,7 @@ class MainActivity : AppCompatActivity() {
         if (imageList.isEmpty()) return
         currentIndex = (currentIndex - 1) % imageList.size
         if (currentIndex < 0) currentIndex = imageList.size - 1
+        if (isPlaying) startSlideTimer() // Reset timer on manual change
         updateUIState()
     }
 
@@ -542,14 +572,16 @@ class MainActivity : AppCompatActivity() {
     private fun togglePlay() {
         if (isPlaying) {
             // Stop slideshow
-            slideRunnable?.let { slideHandler.removeCallbacks(it) }
             isPlaying = false
+            slideHandler.removeCallbacksAndMessages(null)
             showUI = true
             uiRunnable?.let { uiHandler.removeCallbacks(it) }
+            startUiTimer()
         } else {
             // Start slideshow
             isPlaying = true
             showUI = false
+            imageDisplay.resetTransformations()
             startSlideTimer()
             startUiTimer()
         }
@@ -557,15 +589,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startSlideTimer() {
-        slideRunnable?.let { slideHandler.removeCallbacks(it) }
-        if (imageList.isNotEmpty()) {
-            slideRunnable = object : Runnable {
-                override fun run() {
-                    if (imageList.isNotEmpty()) {
-                        showNext()
-                        slideHandler.postDelayed(this, (settings.interval * 1000).toLong())
-                    }
-                }
+        slideHandler.removeCallbacksAndMessages(null)
+        if (isPlaying && imageList.isNotEmpty()) {
+            slideRunnable = Runnable {
+                imageDisplay.resetTransformations()
+                showNext()
             }
             slideHandler.postDelayed(slideRunnable!!, (settings.interval * 1000).toLong())
         }
@@ -573,14 +601,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun startUiTimer() {
         uiRunnable?.let { uiHandler.removeCallbacks(it) }
-        if (!isPlaying) return
         
         uiRunnable = object : Runnable {
             override fun run() {
-                if (isPlaying) {
-                    showUI = false
-                    updateUIVisibility()
-                }
+                showUI = false
+                updateUIVisibility()
             }
         }
         uiHandler.postDelayed(uiRunnable!!, Constants.UI_HIDE_DURATION_MS)
@@ -629,14 +654,15 @@ class MainActivity : AppCompatActivity() {
         // Just show UI, don't toggle play
         showUI = true
         updateUIVisibility()
-        if (isPlaying) {
-            startUiTimer()
-        }
+        startUiTimer()
     }
 
     private fun handleDoubleTap() {
         if (imageList.isEmpty()) return
+        showUI = true
+        updateUIVisibility()
         togglePlay()
+        startUiTimer()
     }
 
     private fun handleLongPress() {
@@ -646,14 +672,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleSwipeLeft() {
         if (imageList.isEmpty()) return
+        imageDisplay.resetTransformations()
         showNext()
-        startUiTimer()
     }
 
     private fun handleSwipeRight() {
         if (imageList.isEmpty()) return
+        imageDisplay.resetTransformations()
         showPrevious()
-        startUiTimer()
     }
 
     // UI updates
@@ -670,7 +696,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateImageDisplay() {
         if (imageList.isNotEmpty() && currentIndex < imageList.size) {
             val imagePath = imageList[currentIndex]
-            imageDisplay.loadImage(imagePath, settings)
+            imageDisplay.loadImage(imagePath, settings, isPlaying)
         } else {
             imageDisplay.clearImage()
         }
@@ -691,7 +717,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePauseOverlay() {
-        pauseOverlay.visibility = if (!isPlaying && imageList.isNotEmpty() && showUI) View.VISIBLE else View.GONE
+        pauseOverlay.visibility = if (!isPlaying && imageList.isNotEmpty()) View.VISIBLE else View.GONE
     }
 
     private fun updateLoadingState() {
@@ -702,6 +728,12 @@ class MainActivity : AppCompatActivity() {
         val shouldShowUI = showUI || imageList.isEmpty()
         infoBar.visibility = if (shouldShowUI && imageList.isNotEmpty()) View.VISIBLE else View.GONE
         controlBar.visibility = if (shouldShowUI) View.VISIBLE else View.GONE
+
+        // Show nav buttons and zoom controls only when paused and UI is visible
+        val navVisible = shouldShowUI && !isPlaying && imageList.isNotEmpty()
+        btnPrev.visibility = if (navVisible) View.VISIBLE else View.GONE
+        btnNext.visibility = if (navVisible) View.VISIBLE else View.GONE
+        zoomControls.visibility = if (navVisible) View.VISIBLE else View.GONE
     }
 
     private fun showError(path: String) {
