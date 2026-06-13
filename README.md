@@ -8,6 +8,7 @@
 
 #### Core Slideshow
 - **Fullscreen Image Slideshow** - Auto-advancing image display with configurable interval
+- **State Preservation** - **Remembers current image, position, and play state during screen rotation**
 - **Multiple Image Formats** - Supports JPG, JPEG, PNG, WEBP, BMP, GIF
 - **Settings Persistence** - All preferences saved between sessions
 - **Dark Theme** - Optimized for image viewing in dark environments
@@ -18,20 +19,20 @@
 - **Long press** - Toggle fullscreen mode
 - **Swipe left** - Next image (resets zoom)
 - **Swipe right** - Previous image (resets zoom)
-- **Pinch to zoom** - Manual zoom on images
-- **Pan/Drag** - Move zoomed images around
+- **Pan/Drag** - Move zoomed images around (only available when paused)
 
 #### Image Navigation
-- **Previous/Next Buttons** - Visible when paused, hidden during playback
-- **Zoom Controls** - Zoom in/out buttons when paused
-- **Auto-reset** - Zoom resets when navigating to next/previous image
+- **Previous/Next Buttons** - **Visible only when paused**, hidden during playback
+- **Zoom Controls** - **Zoom in/out buttons visible only when paused**
+- **Auto-reset** - Zoom **automatically resets** when navigating to next/previous image
+- **Swipe Deactivation** - **Swipe gestures are disabled during zoom** to allow panning
 
 #### Image Display
 - **Glide Integration** - Smooth image loading and caching
 - **Fade Transitions** - Configurable cross-fade between images
 - **Ken Burns Effect** - Slow zoom/pan effect on images (configurable)
 - **Manual Zoom** - 5 zoom levels (1x, 1.5x, 2x, 3x, 4x)
-- **Pan Support** - Drag to move zoomed images
+- **Pan Support** - Drag to move zoomed images (only when paused)
 
 #### File Management
 - **Add Files** - Select individual image files via system picker
@@ -54,6 +55,7 @@
 - **Empty State** - Helpful message with quick actions when no images loaded
 - **Material Design** - Modern UI with Material 3 components
 - **Horizontal Scrolling Control Bar** - All controls accessible via swipe
+- **Navigation Buttons** - Previous/Next and Zoom buttons **appear when paused**
 
 #### Additional Features
 - **Donate Button** - Link to PayPal for supporting development
@@ -63,22 +65,34 @@
 
 ### 🔄 Current Behavior
 
-#### Working as Designed
-- **Screen Rotation**: App handles rotation gracefully, but slideshow state (current image, play/pause) is **not preserved** during rotation
-- **Pause State**: Control bar and navigation buttons **remain visible** when paused (auto-hides after timeout)
-- **Swipe Gestures**: UI **does not show** during swipe (only on tap/double-tap/long-press)
-- **Zoom**: Swipe navigation **resets zoom** to show full image
-- **UI Visibility**: UI auto-hides after 3 seconds of inactivity during playback
+#### ✅ Working as Designed
+- **Screen Rotation**: **FULLY WORKING** - App now remembers:
+  - Current image index
+  - Play/pause state
+  - Zoom level
+  - All settings
+- **Pause Mode**: 
+  - Control bar **remains visible** when paused
+  - **Zoom controls (in/out buttons) appear** when paused
+  - **Navigation buttons (prev/next) appear** when paused
+  - **Swipe gestures are disabled** during zoom to allow panning
+- **Zoom Functionality**:
+  - **Only available when paused** (not during playback)
+  - **Pinch-to-zoom removed** (simplified for better image display)
+  - **Manual zoom buttons** (in/out) used instead
+  - **Swipe navigation resets zoom** to show full image
+  - **Pan enabled** when zoomed (drag to move image)
+- **UI Visibility**: 
+  - UI auto-hides after 3 seconds of inactivity **during playback**
+  - UI **stays visible** when paused (for easy navigation)
 
-#### Known Limitations
-- **State Preservation**: Screen rotation causes activity restart (Android default behavior)
-  - *Workaround*: Consider using ViewModel + savedStateHandle for future versions
-- **Folder Loading**: Large folders may take time to load (no progress indication for folder scanning)
+#### ⚠️ Known Limitations
+- **Large Folders**: May take time to load (no progress indication for folder scanning)
 - **Memory**: Very large images may cause memory issues (Glide handles most cases well)
+- **Pinch-to-Zoom**: **Intentionally removed** - Simplified to manual zoom buttons for better image display consistency
 
 ### 🚧 Planned Improvements
 
-- [ ] **Preserve state during screen rotation** - Use ViewModel + savedStateHandle to maintain slideshow state
 - [ ] **Progress indicator for folder loading** - Show loading progress when scanning large folders
 - [ ] **Image caching optimization** - Better memory management for large image collections
 - [ ] **Custom transitions** - More transition types (slide, zoom, fade+zoom, etc.)
@@ -96,6 +110,8 @@ KaiSlideshow-Android/
 ├── app/
 │   ├── src/main/java/com/kmrodni/kaislideshow/
 │   │   ├── MainActivity.kt              # Main activity with all logic
+│   │   │                                   # Handles: rotation state, gestures,
+│   │   │                                   # zoom/pan, settings, file picking
 │   │   ├── KaiSlideshowApp.kt           # Application class
 │   │   ├── models/
 │   │   │   └── SlideshowSettings.kt      # Settings model with persistence
@@ -106,12 +122,14 @@ KaiSlideshow-Android/
 │   │   │   └── FileUtils.kt              # File operations and URI handling
 │   │   └── views/
 │   │       ├── ImageDisplayView.kt      # Custom view with zoom/pan/Ken Burns
+│   │       │                                   # Note: Manual zoom only (no pinch)
 │   │       ├── InfoBarView.kt            # Shows current image info (X/Y • filename)
 │   │       └── ControlBarView.kt        # Control bar with all action buttons
 │   │
 │   └── src/main/res/
 │       ├── layout/                      # XML layouts
 │       │   ├── activity_main.xml         # Main activity layout
+│       │   │                                   # Includes: zoom buttons, nav buttons
 │       │   ├── view_control_bar.xml     # Control bar with Material buttons
 │       │   ├── view_info_bar.xml         # Info bar layout
 │       │   └── dialog_settings.xml       # Settings dialog layout
@@ -126,7 +144,6 @@ KaiSlideshow-Android/
 │       │   ├── ic_exit.xml               # Exit icon
 │       │   ├── ic_folder.xml             # Folder icon
 │       │   ├── ic_heart.xml              # Heart/donate icon
-│       │   ├── ic_rotate.xml             # Rotate icon
 │       │   ├── ic_settings.xml           # Settings icon
 │       │   ├── ic_zoom_in.xml            # Zoom in icon
 │       │   ├── ic_zoom_out.xml           # Zoom out icon
@@ -203,23 +220,24 @@ KaiSlideshow-Android/
 | **Open from File Manager** | Navigate to an image and open with KaiSlideshow |
 
 ### Controls
-| Action | Effect |
-|--------|--------|
-| Single tap | Show/hide UI controls |
-| Double tap | Toggle play/pause |
-| Long press | Toggle fullscreen mode |
-| Swipe left | Next image (resets zoom) |
-| Swipe right | Previous image (resets zoom) |
-| Pinch | Zoom in/out on image |
-| Drag (while zoomed) | Pan the zoomed image |
+| Action | Effect | Available When |
+|--------|--------|----------------|
+| Single tap | Show/hide UI controls | Always |
+| Double tap | Toggle play/pause | Always |
+| Long press | Toggle fullscreen mode | Always |
+| Swipe left | Next image (resets zoom) | Always |
+| Swipe right | Previous image (resets zoom) | Always |
+| Drag/Pan | Move zoomed image | **Paused + Zoomed** |
 
-### Navigation Buttons (Visible when paused)
-| Button | Action |
-|--------|--------|
-| ← | Previous image |
-| → | Next image |
-| + | Zoom in |
-| - | Zoom out |
+### Navigation & Zoom Buttons (Visible when Paused)
+| Button | Action | Effect |
+|--------|--------|--------|
+| ← | Previous | Go to previous image, reset zoom |
+| → | Next | Go to next image, reset zoom |
+| + | Zoom In | Increase zoom level |
+| - | Zoom Out | Decrease zoom level |
+
+**Note:** These buttons **only appear when slideshow is paused** and **disappear during playback**.
 
 ### Settings
 Access settings via the **Settings** button in the control bar:
@@ -227,7 +245,7 @@ Access settings via the **Settings** button in the control bar:
 - **Shuffle**: Random or sequential image order
 - **Fade Transitions**: Enable smooth transitions between images
 - **Ken Burns Effect**: Enable slow zoom/pan effect on images
-- **Sleep Timer**: Auto-exit after selected time (Off, 15min, 30min, 1h, 2h, 4h)
+- **Sleep Timer**: Auto-exit after selected time (Off, 15 min, 30 min, 1 hour, 2 hours, 4 hours)
 
 ### Control Bar Buttons
 | Button | Icon | Action |
@@ -299,7 +317,7 @@ The app requires the following permissions:
 - **Pause Overlay**: Small semi-transparent overlay in bottom-right corner when paused
 - **Info Bar**: Shows current position (X/Y) and filename at bottom-left
 - **Control Bar**: Horizontal scrolling bar at top with all action buttons
-- **Navigation Buttons**: Previous/Next and Zoom In/Out buttons (visible when paused)
+- **Navigation Buttons**: Previous/Next and Zoom In/Out buttons (**visible only when paused**)
 - **Loading Indicator**: Centered progress spinner during file operations
 - **Empty State**: Helpful screen with quick actions when no images are loaded
 
@@ -308,6 +326,26 @@ The app requires the following permissions:
 - **Ken Burns Effect**: Slow zoom/pan animation on images (configurable)
 - **Zoom Animations**: Smooth zoom in/out transitions
 - **UI Fade**: Controls fade in/out smoothly
+
+## 🎯 Design Decisions
+
+### Zoom Implementation
+- **Manual Zoom Only**: Pinch-to-zoom was **intentionally removed** to simplify the user experience
+- **Reason**: Pinch-to-zoom added complexity that made it difficult to display images consistently during normal playback
+- **Benefit**: Better control over image display, especially for images that are too large or too small
+- **Alternative**: Manual zoom buttons (in/out) provide the same functionality without the complexity
+
+### Zoom Behavior
+- **Only Available When Paused**: Zoom functionality is disabled during playback
+- **Reason**: Prevents accidental zooming during slideshow viewing
+- **Swipe Deactivation**: Swipe gestures are disabled during zoom to allow panning
+- **Auto-Reset**: Zoom automatically resets when navigating to next/previous image
+- **Navigation Buttons**: Previous/Next buttons appear when paused for easy navigation
+
+### Screen Rotation
+- **Full State Preservation**: App now remembers all state during screen rotation
+- **Implementation**: Uses Android's built-in activity lifecycle with proper state saving
+- **Benefit**: Seamless experience when rotating device between portrait and landscape
 
 ## 🐛 Troubleshooting
 
@@ -331,24 +369,27 @@ The app requires the following permissions:
 - **Cause**: Missing permissions or URI handling issue
 - **Fix**: Ensure READ_MEDIA_IMAGES permission is granted, check URI handling in FileUtils
 
-### "App crashes on rotation"
-- **Cause**: Activity restart without state preservation
-- **Fix**: This is expected behavior. Future improvement: Implement ViewModel for state preservation
-
 ## 📊 Technical Details
 
 ### Architecture
 - **Single Activity**: All functionality in MainActivity
 - **Custom Views**: ImageDisplayView, InfoBarView, ControlBarView
-- **No ViewModel**: State is currently managed in Activity (planned improvement)
+- **State Management**: Activity handles state with proper lifecycle management
 - **Activity Result API**: Modern approach for file/folder picking
 - **Glide**: Image loading with caching and transitions
 
 ### Key Components
-- **ImageDisplayView**: Handles image loading, zoom, pan, Ken Burns effect
-- **MainActivity**: Manages slideshow logic, gestures, settings
+- **ImageDisplayView**: Handles image loading, manual zoom, pan, Ken Burns effect
+- **MainActivity**: Manages slideshow logic, gestures, settings, state preservation
 - **SlideshowSettings**: Data class for persistent settings
 - **FileUtils**: URI handling and file operations
+
+### Zoom Implementation Details
+- **Zoom Levels**: 5 discrete levels (1x, 1.5x, 2x, 3x, 4x)
+- **Zoom Controls**: Manual buttons (no pinch-to-zoom)
+- **Pan Support**: Drag to move when zoomed (only when paused)
+- **Swipe Behavior**: Swipe disabled during zoom to prevent accidental navigation
+- **Navigation Buttons**: Appear when paused for easy browsing
 
 ## 📈 Performance Considerations
 
@@ -356,6 +397,7 @@ The app requires the following permissions:
 - **Large Folders**: May take time to load (consider background loading)
 - **Zoom/Pan**: Smooth animations with hardware acceleration
 - **Memory**: Images are loaded at appropriate resolution for display
+- **State Preservation**: Minimal overhead for rotation state handling
 
 ## 📄 License
 
@@ -366,7 +408,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### Areas for Contribution
-- State preservation during rotation
+- Progress indicator for folder loading
 - Additional transition effects
 - Image editing features
 - Performance optimizations
