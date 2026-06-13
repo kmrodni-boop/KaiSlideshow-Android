@@ -1,6 +1,6 @@
 # KaiSlideshow-Android
 
-**Native Android implementation of KaiSlideshow** - A fullscreen image slideshow viewer with advanced gesture controls, zoom/pan functionality, and sharing support.
+**Native Android implementation of KaiSlideshow** - A lightweight, fullscreen image slideshow viewer with gesture controls and zoom/pan functionality.
 
 ## 📱 Features
 
@@ -90,18 +90,6 @@
 - **Large Folders**: May take time to load (no progress indication for folder scanning)
 - **Memory**: Very large images may cause memory issues (Glide handles most cases well)
 - **Pinch-to-Zoom**: **Intentionally removed** - Simplified to manual zoom buttons for better image display consistency
-
-### 🚧 Planned Improvements
-
-- [ ] **Progress indicator for folder loading** - Show loading progress when scanning large folders
-- [ ] **Image caching optimization** - Better memory management for large image collections
-- [ ] **Custom transitions** - More transition types (slide, zoom, fade+zoom, etc.)
-- [ ] **Image rotation** - Support for rotating images 90° left/right
-- [ ] **Slideshow speed control** - Separate speed from interval for smoother transitions
-- [ ] **Image filtering** - Apply filters (grayscale, sepia, etc.)
-- [ ] **Playlists** - Save and load image collections
-- [ ] **Favorites** - Mark favorite images
-- [ ] **Thumbnails** - Show thumbnail grid for navigation
 
 ## 📁 Project Structure
 
@@ -327,22 +315,32 @@ The app requires the following permissions:
 - **Zoom Animations**: Smooth zoom in/out transitions
 - **UI Fade**: Controls fade in/out smoothly
 
-## 🎯 Design Decisions
+## 🎯 Design Philosophy
 
-### Zoom Implementation
+KaiSlideshow is designed to be a **lightweight, focused image viewer** with the essential features needed for a great slideshow experience. We intentionally avoid feature bloat to keep the app simple, fast, and reliable.
+
+### Why We Keep It Simple
+- **Existing Ecosystem**: Image editing and advanced features are already available in gallery apps
+- **Focus**: A dedicated slideshow viewer should do one thing well
+- **Performance**: Lightweight apps start faster and use fewer resources
+- **Maintainability**: Simpler code is easier to maintain and has fewer bugs
+
+### Key Design Decisions
+
+#### Zoom Implementation
 - **Manual Zoom Only**: Pinch-to-zoom was **intentionally removed** to simplify the user experience
 - **Reason**: Pinch-to-zoom added complexity that made it difficult to display images consistently during normal playback
 - **Benefit**: Better control over image display, especially for images that are too large or too small
 - **Alternative**: Manual zoom buttons (in/out) provide the same functionality without the complexity
 
-### Zoom Behavior
+#### Zoom Behavior
 - **Only Available When Paused**: Zoom functionality is disabled during playback
 - **Reason**: Prevents accidental zooming during slideshow viewing
 - **Swipe Deactivation**: Swipe gestures are disabled during zoom to allow panning
 - **Auto-Reset**: Zoom automatically resets when navigating to next/previous image
 - **Navigation Buttons**: Previous/Next buttons appear when paused for easy navigation
 
-### Screen Rotation
+#### Screen Rotation
 - **Full State Preservation**: App now remembers all state during screen rotation
 - **Implementation**: Uses Android's built-in activity lifecycle with proper state saving
 - **Benefit**: Seamless experience when rotating device between portrait and landscape
@@ -403,14 +401,8 @@ The app requires the following permissions:
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
+## 🤝 About
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+KaiSlideshow is a simple, focused image slideshow viewer for Android. It provides the essential features needed for a great viewing experience without unnecessary complexity.
 
-### Areas for Contribution
-- Progress indicator for folder loading
-- Additional transition effects
-- Image editing features
-- Performance optimizations
-- UI improvements
-- New features (playlists, favorites, etc.)
+For advanced image editing and management, we recommend using dedicated gallery and editing applications that are already part of the Android ecosystem.
